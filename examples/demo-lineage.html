@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>高速公路审计数据血缘图</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { margin: 20px; font-family: "Microsoft YaHei", sans-serif; background: #fafafa; }
+  h1 { text-align: center; color: #333; }
+  .tabs { display: flex; gap: 10px; margin: 20px 0; justify-content: center; }
+  .tabs button { padding: 10px 24px; border: 2px solid #2c5e3f; border-radius: 6px; cursor: pointer; font-size: 16px; background: #fff; color: #2c5e3f; }
+  .tabs button.active { background: #2c5e3f; color: #fff; }
+  .mermaid { text-align: center; margin: 20px auto; width: 100%; overflow-x: auto; }
+  .mermaid svg { width: 100% !important; height: auto !important; max-width: none !important; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin: 10px 0; font-size: 13px; }
+  .legend span { padding: 2px 10px; border-radius: 3px; }
+  .zoom-bar { display: flex; gap: 6px; justify-content: center; align-items: center; margin: 8px 0; font-size: 14px; }
+  .zoom-bar button { padding: 4px 14px; border: 1px solid #999; border-radius: 4px; cursor: pointer; background: #fff; font-size: 16px; min-width: 36px; }
+  .zoom-bar button:hover { background: #eee; }
+  .zoom-bar .zoom-pct { display: inline-block; width: 50px; text-align: center; font-weight: bold; }
+  .zoom-wrapper { width: 100%; overflow: auto; transform-origin: top left; transition: transform 0.15s; }
+  .mermaid.hidden-tab { visibility: hidden; position: absolute; pointer-events: none; }
+</style>
+</head>
+<body>
+<h1>🚗 高速公路通行费审计 — 数据血缘图</h1>
+<p style="text-align:center;color:#666;font-size:14px">包含拟合26may17.sql + 2个PySpark脚本的完整数据流</p>
+
+<div class="zoom-bar">
+  <button onclick="zoomOut()" title="缩小">🔍−</button>
+  <span class="zoom-pct" id="zoomLabel">100%</span>
+  <button onclick="zoomIn()" title="放大">🔍+</button>
+  <button onclick="zoomReset()" title="重置">↺</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3CD">🟡 外部源表</span>
+  <span style="background:#D1ECF1">🔵 ODS层</span>
+  <span style="background:#C3E6CB">🟢 DWD层</span>
+  <span style="background:#F3E5F5">🟣 维表（Holodesk）</span>
+  <span style="background:#FDE2E2">🔴 中间处理（ORC）</span>
+  <span style="background:#FFEAA7">🟠 最终输出</span>
+  <span style="background:#E8DAEF">⚪ PySpark</span>
+</div>
+
+<div class="zoom-wrapper" id="zoomWrapper">
+
+<div class="tabs">
+  <button class="active" onclick="showTab('full', this)">📊 全量血缘图</button>
+  <button onclick="showTab('simple', this)">🎯 核心链路（PPT用）</button>
+</div>
+
+<div id="full" class="mermaid">
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'12px'}, 'flowchart': {'nodeSpacing': 20, 'rankSpacing': 40}}}%%
+flowchart LR
+  subgraph EXT["🟡 外部源表"]
+    ods_basic["ods_basic_info"]
+    dwd_entry_holo["dwd_entry_holo"]
+    dwd_exit_holo["dwd_exit_holo"]
+    dwd_ramp_holo["dwd_ramp_holo"]
+    dwd_gantry_holo["dwd_gantry_holo"]
+    dwd_gantry_viu_holo["dwd_gantry_viu_holo"]
+    ods_lane_viu["ods_lane_viu"]
+    mpis["DWD_MPIS记账/清分/拆分"]
+    ods_gantry_link["ods_gantry_link"]
+    ods_topu["ods_topu_pr_all<br/>ods_topu_nogantry"]
+  end
+
+  subgraph ODS["🔵 ODS层"]
+    ods_ep_entry["ods_ep_entry_start"]
+    ods_ep_exit["ods_ep_exit_start"]
+    ods_ep_ramp["ods_ep_ramp_start"]
+    ods_ep_gantry["ods_ep_gantry_start"]
+    ods_gbupload_viu["ods_ep_gbupload_viu_start"]
+    ods_gbupload_viu_pre["ods_ep_gbupload_viu_pre"]
+  end
+
+  subgraph DIM["🟣 维表（Holodesk）"]
+    dim_basic["dim_basic_info<br/>（省内）"]
+    dim_basic_all["dim_basic_info_allnwai<br/>（含外省）"]
+    dim_gantryntollid["dim_basicinfo_gantryntollid"]
+    dim_gantry_link_opp["dim_basic_gantry_link_opp"]
+  end
+
+  subgraph DWD["🟢 DWD层"]
+  direction TB
+    dwd_entry["dwd_ep_entry<br/>（入口）"]
+    dwd_exit["dwd_ep_exit<br/>（出口）"]
+    dwd_exit_en["dwd_ep_exit_en<br/>（出口找入口）"]
+    dwd_ramp_en["dwd_ep_ramp_en<br/>（匝道入）"]
+    dwd_ramp_ex["dwd_ep_ramp_ex<br/>（匝道出）"]
+    dwd_ramp_exiten["dwd_ep_ramp_exiten<br/>（匝道出找入）"]
+    dwd_gantry_sj["dwd_ep_gantry_sj<br/>🌐Holodesk<br/>（省界门架）"]
+    dwd_gantry_zx["dwd_ep_gantry_zhuxian<br/>🌐Holodesk<br/>（主线门架）"]
+    dwd_gantry_lane_viu["dwd_gantry_lane_viu<br/>（门架+车道牌识）"]
+  end
+
+  subgraph MID["🔴 通行记录中间层"]
+    tmp_passidmid1["tmp_passidmidstp1<br/>（6源合并+去重）"]
+    tmp_passidmid2["tmp_passidmidstp2<br/>（入口去重+出口分流）"]
+    tmp_tongxingmid1["tmp_tongxingmidstp1<br/>（+省界+主线）"]
+    tmp_tongxingmid_legal["tmp_tongxingmid_legal<br/>（合规性检查）"]
+    tmp_tongxingmid_presub["tmp_tongxingmid_presub<br/>（打标 en/ex/inout）"]
+    tmp_presub_mok3["tmp_tongxingmid_presub_mok3<br/>🌐Holodesk<br/>（交易成功去重）"]
+  end
+
+  subgraph SUB["🔴 分段 & 异常检测"]
+    stg_sub_passid["stg_sub_passid<br/>（外部表·接PySpark）"]
+    sub_passidorcstp2["sub_passidorcstp2<br/>（分段结果ORC）"]
+    sub_passidorcstp3["sub_passidorcstp3<br/>（含passid_status）"]
+    tmp_segment_marking["tmp_segment_marking"]
+    tmp_segment_limits["tmp_segment_limits"]
+    tmp_subpass_pre["tmp_subpass_pre"]
+    tmp_path_ranking["tmp_path_ranking"]
+    tmp_subid_formatting["tmp_subid_formatting"]
+    tmp_anomaly_list["tmp_anomaly_passid_list"]
+  end
+
+  subgraph PLATE["🔴 牌识关联链（viu_plate_stp1~9）"]
+    viu_plate_stp1["viu_plate_stp1"]
+    viu_plate_stp3["viu_plate_stp3"]
+    viu_plate_stp5["viu_plate_stp5"]
+    viu_plate_stp6["viu_plate_stp6"]
+    viu_plate_stp7["viu_plate_stp7"]
+    viu_plate_stp8["viu_plate_stp8_*<br/>（8张子表）"]
+    viu_plate_stp9["viu_plate_stp9"]
+  end
+
+  subgraph TRANSC["🔴 路径处理 & 反向门架检测"]
+    transc_midclear["transc_all_plate_midclear"]
+    transc_brokflg["transc_...midganbrokflg<br/>（不连续打标）"]
+    transc_midcmp["transc_...midcmp<br/>（cmp_flg汇总）"]
+    transc_oppgantry["transc_all_plate_oppgantry<br/>（反向① oppgantry_flg）"]
+    transc_u_turn["transc_u_turn_route<br/>（U型行程）"]
+    oppp2_transfpre["transc_...oppp2_transfpre1/2"]
+    oppp2_transfaft["transc_...oppp2_transfaft1/2<br/>（反向② oppgantry_flg2）"]
+    transc_wanzheng["transc_...wanzheng_transf_U"]
+    union_comp_transf["union_comp_transf<br/>（完整+不完整合并）"]
+    tmp_all_nodes["tmp_all_nodes<br/>（拆段为点）"]
+    tmp_filtered_nodes["tmp_filtered_nodes<br/>（过滤反向点）"]
+    oppp2_nihe1["transc_...oppp2_transfprenihe1<br/>（重链）"]
+    oppp2_nihe2["transc_...oppp2_transfprenihe2<br/>（关联tollid）"]
+    oppp2_nihe_fin["transc_...oppp2_transfprenihe_fin<br/>（isneedsimu标定）"]
+  end
+
+  subgraph NIHE["🔴 拟合"]
+    nihe_tstcom["..._fin_tstcom<br/>（需拟合-全拓扑）"]
+    nihe_res1["..._fin_res1<br/>（关联全拓扑）"]
+    nihe_nogantry["..._fin_nogantry<br/>（需拟合-无门架拓扑）"]
+    nihe_res2["..._fin_res2<br/>（关联无门架拓扑）"]
+    nihe_union_orc["..._fin_tstcom_union_orc<br/>（拟合结果ORC）"]
+    transc_seq_base["transc_seq_base"]
+    tmp_path_split["tmp_transc_path_split<br/>（列转行爆炸）"]
+    transc_seq_final["transc_seq_final<br/>（最终排序）"]
+  end
+
+  subgraph FIN["🟠 最终输出主链"]
+    fin_stp1["fin_transcall_midcmp_stp1<br/>（+ oppgantry_flg）"]
+    ret_oppfg2["ret_transc_all_plate_oppfg2<br/>（回型oppgantry_flg2）"]
+    fin_stp2["fin_transcall_midcmp_stp2<br/>（+ oppgantry_flg2）"]
+    fin_unionstp1["fin_transcall_midcmp_unionstp1<br/>（列对齐+异常标记）"]
+    fin_unionstp2["fin_unionstp2<br/>（省内省界）"]
+    fin_unionstp3s1["fin_unionstp3s1<br/>（加省界匝道）"]
+    fin_unionstp3s2["fin_unionstp3s2<br/>（+省界匝道单元）"]
+    fin_union_tbd["fin_transcall_midcmp_union_tbd<br/>🌐Holodesk"]
+    fin_union_tbd_res["fin_...union_tbd_res<br/>（接PySpark补匝道结果）"]
+    fin_unionstp3["fin_unionstp3<br/>（合并主表）"]
+    fin_unionstp4["fin_unionstp4<br/>（+stationid）"]
+  end
+
+  subgraph STEP["🟠 Step最终判定"]
+    step0_filter["step0_filter_rows<br/>（反向门架过滤集）"]
+    step0_normal["step0_normal_data<br/>（正常数据）"]
+    step1_base["step1_base_data"]
+    step2_stats["step2_passid_stats"]
+    step2_failed["step2_passid_failedsimu"]
+    step3_sub["step3_sub_pass_stats"]
+    step4_transit["step4_passid_in_transit"]
+    step5_result["step5_normal_result"]
+    step6_status["step6_passid_standard_status<br/>（pass_status: 1~4）"]
+    fin_unionstp5["fin_transcall_midcmp_unionstp5<br/>（合并全量+状态）"]
+    fin_unionstp6["fin_unionstp6<br/>（最终去重）"]
+  end
+
+  subgraph DWS["🟠 应用层输出"]
+    dws_detail["dws_ep_expresswaypass_detail"]
+    agg_exit_base["agg_ep_expresswaypass_exit_base<br/>（出口汇总·pass_status=1/2）"]
+    agg_stp1["agg_tongxing_exit_basestp1<br/>（行转列·首尾提取）"]
+    agg_stp2["agg_tongxing_exit_basestp2<br/>（+stationid→basicid）"]
+    agg_stp3["agg_tongxing_exit_basestp3<br/>（关联源表维度）"]
+    dws_agg_exit["dws_ep_expresswaypass_agg_exit<br/>📦最终聚合表"]
+  end
+
+  subgraph SPARK["⚪ PySpark 脚本"]
+    spark_sub["workflow_forqa_subpassid.py<br/>（分段引擎）"]
+    spark_nihe["workflow_forqa_addsjramp.py<br/>（省界匝道补点）"]
+  end
+
+  %% ===== 连线 =====
+  ods_basic --> dim_basic
+  ods_basic --> dim_basic_all
+  dwd_entry_holo --> ods_ep_entry
+  dwd_exit_holo --> ods_ep_exit
+  dwd_ramp_holo --> ods_ep_ramp
+  dwd_gantry_holo --> ods_ep_gantry
+  dwd_gantry_viu_holo --> ods_gbupload_viu_pre
+  ods_gbupload_viu_pre --> ods_gbupload_viu
+  ods_lane_viu --> dwd_gantry_lane_viu
+  ods_gbupload_viu --> dwd_gantry_lane_viu
+
+  dim_basic --> dwd_entry
+  dim_basic --> dwd_exit
+  dim_basic --> dwd_exit_en
+  dim_basic --> dwd_ramp_en
+  dim_basic --> dwd_ramp_ex
+  dim_basic --> dwd_ramp_exiten
+  dim_basic --> dwd_gantry_sj
+  dim_basic --> dwd_gantry_zx
+
+  ods_ep_entry --> dwd_entry
+  ods_ep_exit --> dwd_exit
+  ods_ep_exit --> dwd_exit_en
+  ods_ep_ramp --> dwd_ramp_en
+  ods_ep_ramp --> dwd_ramp_ex
+  ods_ep_ramp --> dwd_ramp_exiten
+  ods_ep_gantry --> dwd_gantry_sj
+  ods_ep_gantry --> dwd_gantry_zx
+
+  dwd_entry --> tmp_passidmid1
+  dwd_exit --> tmp_passidmid1
+  dwd_exit_en --> tmp_passidmid1
+  dwd_ramp_en --> tmp_passidmid1
+  dwd_ramp_ex --> tmp_passidmid1
+  dwd_ramp_exiten --> tmp_passidmid1
+  mpis --> tmp_passidmid1
+  tmp_passidmid1 --> tmp_passidmid2
+  tmp_passidmid2 --> tmp_tongxingmid1
+  dwd_gantry_sj --> tmp_tongxingmid1
+  dwd_gantry_zx --> tmp_tongxingmid1
+  dim_basic --> tmp_tongxingmid_legal
+  tmp_tongxingmid1 --> tmp_tongxingmid_legal
+  tmp_tongxingmid_legal --> tmp_tongxingmid_presub
+  tmp_tongxingmid_presub --> tmp_presub_mok3
+
+  tmp_presub_mok3 --> spark_sub
+  spark_sub --> stg_sub_passid
+  stg_sub_passid --> sub_passidorcstp2
+  sub_passidorcstp2 --> sub_passidorcstp3
+
+  sub_passidorcstp3 --> viu_plate_stp1
+  viu_plate_stp1 --> viu_plate_stp3
+  viu_plate_stp3 --> viu_plate_stp5
+  viu_plate_stp5 --> viu_plate_stp6
+  viu_plate_stp6 --> viu_plate_stp7
+  viu_plate_stp7 --> viu_plate_stp8
+  viu_plate_stp8 --> viu_plate_stp9
+
+  sub_passidorcstp3 --> transc_midclear
+  dwd_gantry_lane_viu --> transc_midclear
+  viu_plate_stp9 --> transc_midclear
+
+  transc_midclear --> transc_brokflg
+  transc_brokflg --> transc_midcmp
+  transc_midcmp --> transc_oppgantry
+  transc_oppgantry --> transc_u_turn
+  dim_basic --> transc_u_turn
+
+  ods_gantry_link --> dim_gantryntollid
+  dim_basic --> dim_gantryntollid
+  dim_gantryntollid --> dim_gantry_link_opp
+  ods_gantry_link --> dim_gantry_link_opp
+
+  transc_midcmp --> oppp2_transfpre
+  dim_gantry_link_opp --> oppp2_transfpre
+  oppp2_transfpre --> oppp2_transfaft
+  oppp2_transfaft --> transc_wanzheng
+  transc_wanzheng --> union_comp_transf
+  transc_midcmp --> union_comp_transf
+
+  union_comp_transf --> tmp_all_nodes
+  tmp_all_nodes --> tmp_filtered_nodes
+  tmp_filtered_nodes --> oppp2_nihe1
+  oppp2_nihe1 --> oppp2_nihe2
+  dim_gantryntollid --> oppp2_nihe2
+  oppp2_nihe2 --> oppp2_nihe_fin
+  dim_gantry_link_opp --> oppp2_nihe_fin
+  ods_topu --> oppp2_nihe_fin
+
+  oppp2_nihe_fin --> nihe_tstcom
+  oppp2_nihe_fin --> nihe_nogantry
+  oppp2_nihe_fin --> nihe_union_orc
+  nihe_tstcom --> nihe_res1
+  nihe_nogantry --> nihe_res2
+  ods_topu --> nihe_res1
+  ods_topu --> nihe_res2
+  nihe_res1 --> nihe_union_orc
+  nihe_res2 --> nihe_union_orc
+  nihe_union_orc --> transc_seq_base
+  transc_seq_base --> tmp_path_split
+  transc_seq_base --> transc_seq_final
+  tmp_path_split --> transc_seq_final
+
+  transc_midcmp --> fin_stp1
+  transc_oppgantry --> fin_stp1
+  fin_stp1 --> fin_stp2
+  oppp2_transfaft --> ret_oppfg2
+  ret_oppfg2 --> fin_stp2
+  fin_stp2 --> fin_unionstp1
+  fin_unionstp1 --> fin_unionstp2
+  fin_unionstp2 --> fin_unionstp3s1
+  fin_unionstp2 --> fin_unionstp3s2
+  fin_unionstp1 --> fin_union_tbd
+  fin_union_tbd --> spark_nihe
+  spark_nihe --> fin_union_tbd_res
+  fin_unionstp3s2 --> fin_union_tbd
+  fin_unionstp1 --> fin_unionstp3
+  fin_union_tbd_res --> fin_unionstp3
+  fin_unionstp3 --> fin_unionstp4
+  dim_basic --> fin_unionstp4
+
+  fin_unionstp4 --> step0_filter
+  fin_unionstp4 --> step0_normal
+  step0_normal --> step1_base
+  step1_base --> step2_stats
+  step1_base --> step2_failed
+  step1_base --> step3_sub
+  step3_sub --> step4_transit
+  step2_stats --> step5_result
+  step2_failed --> step5_result
+  step3_sub --> step5_result
+  step4_transit --> step5_result
+  step5_result --> step6_status
+  step0_filter --> fin_unionstp5
+  step5_result --> fin_unionstp5
+  step6_status --> fin_unionstp5
+  fin_unionstp5 --> fin_unionstp6
+
+  fin_unionstp6 --> dws_detail
+  dws_detail --> agg_exit_base
+  agg_exit_base --> agg_stp1
+  agg_stp1 --> agg_stp2
+  dim_basic --> agg_stp2
+  agg_stp2 --> agg_stp3
+  mpis --> agg_stp3
+  dim_basic_all --> agg_stp3
+  agg_stp3 --> dws_agg_exit
+</div>
+
+<div id="simple" class="mermaid" data-tab="simple">
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 15, 'rankSpacing': 35}}}%%
+flowchart LR
+  subgraph SRC["📥 数据源"]
+    ods_basic["ods_basic_info<br/>（基础信息）"]
+    dwd_entry_holo["dwd_entry_holo"]
+    dwd_exit_holo["dwd_exit_holo"]
+    dwd_ramp_holo["dwd_ramp_holo"]
+    dwd_gantry_holo["dwd_gantry_holo"]
+    dwd_gantry_viu_holo["dwd_gantry_viu_holo"]
+    ods_lane_viu["ods_lane_viu"]
+    mpis["记账/清分/拆分表"]
+    ods_gantry_link["ods_gantry_link"]
+    ods_topu["ods_topu_pr_all<br/>（全拓扑平铺表）"]
+  end
+
+  subgraph L1["📋 数据预处理"]
+    ods_layer["ODS抽取<br/>（入口/出口/匝道/门架）"]
+    dwd_layer["DWD打标<br/>（合规性/方向/省界）"]
+    dim_basic["dim_basic_info<br/>🌐维表（Holodesk）"]
+    mid_union["通行记录合并去重<br/>（6源+省界+主线）"]
+  end
+
+  subgraph L2["🔀 分段引擎"]
+    presub["tmp_presub_mok3<br/>🌐（交易成功去重）"]
+    spark_sub["⚡ PySpark 分段<br/>workflow_forqa_subpassid.py"]
+    sub_result["sub_passidorcstp3<br/>（sub_passid + passid_status）"]
+  end
+
+  subgraph L3["🔍 路径检测"]
+    plate_chain["牌识关联链<br/>viu_plate_stp1~9"]
+    transc_chain["门架路径检测<br/>不连续→反向①→U型"]
+    nihe_chain["拟合 engines<br/>全拓扑 + 无门架拓扑<br/>→ 列转行爆炸"]
+  end
+
+  subgraph L4["⚡ PySpark 补点"]
+    fin_union_tbd["fin_union_tbd<br/>🌐（拟合输入）"]
+    spark_addsjramp["⚡ PySpark 省界匝道补点<br/>workflow_forqa_addsjramp.py"]
+    fin_union_tbd_res["fin_union_tbd_res<br/>（补点结果）"]
+  end
+
+  subgraph L5["📊 最终判定"]
+    fin_chain["fin_transcall_midcmp<br/>unionstp1→stp4<br/>（合并+stationid）"]
+    step_chain["Step 0→6<br/>反向过滤→pass_status<br/>（1/2/3/4）"]
+    fin_final["fin_unionstp6<br/>✅ 最终明细表"]
+  end
+
+  subgraph OUT["📦 应用输出"]
+    dws_detail["dws_ep_expresswaypass_detail"]
+    dws_agg_exit["dws_ep_expresswaypass_agg_exit<br/>📦 出口聚合表"]
+  end
+
+  ods_basic --> dim_basic
+  dwd_entry_holo --> ods_layer
+  dwd_exit_holo --> ods_layer
+  dwd_ramp_holo --> ods_layer
+  dwd_gantry_holo --> ods_layer
+  dim_basic --> dwd_layer
+  ods_layer --> dwd_layer
+  dwd_gantry_viu_holo --> plate_chain
+  ods_lane_viu --> plate_chain
+  mpis --> mid_union
+  dwd_layer --> mid_union
+
+  mid_union --> presub
+  presub --> spark_sub
+  spark_sub --> sub_result
+
+  sub_result --> plate_chain
+  sub_result --> transc_chain
+  plate_chain --> transc_chain
+  ods_gantry_link --> transc_chain
+  dim_basic --> transc_chain
+  transc_chain --> nihe_chain
+  ods_topu --> nihe_chain
+
+  sub_result --> fin_union_tbd
+  nihe_chain --> fin_union_tbd
+  fin_union_tbd --> spark_addsjramp
+  spark_addsjramp --> fin_union_tbd_res
+
+  sub_result --> fin_chain
+  nihe_chain --> fin_chain
+  fin_union_tbd_res --> fin_chain
+  dim_basic --> fin_chain
+  fin_chain --> step_chain
+  step_chain --> fin_final
+
+  fin_final --> dws_detail
+  dws_detail --> dws_agg_exit
+</div>
+
+</div><!-- end zoom-wrapper -->
+
+<script>
+var zoomLevel = 1.0;
+var wrapper = document.getElementById('zoomWrapper');
+var zoomLabel = document.getElementById('zoomLabel');
+
+function applyZoom() {
+  wrapper.style.transform = 'scale(' + zoomLevel + ')';
+  zoomLabel.textContent = Math.round(zoomLevel * 100) + '%';
+}
+function zoomIn()  { zoomLevel = Math.min(5.0, zoomLevel + 0.15); applyZoom(); }
+function zoomOut() { zoomLevel = Math.max(0.4, zoomLevel - 0.15); applyZoom(); }
+function zoomReset() { zoomLevel = 1.0; applyZoom(); }
+
+mermaid.initialize({ startOnLoad: true, securityLevel: 'loose', flowchart: { useMaxWidth: true, htmlLabels: true } });
+
+// MutationObserver: fix SVG attributes the moment mermaid injects them
+var svgFixed = 0;
+var obs = new MutationObserver(function(mutations) {
+  mutations.forEach(function(m) {
+    m.addedNodes.forEach(function(node) {
+      if (node.tagName === 'svg' || (node.querySelectorAll && node.querySelectorAll('svg').length)) {
+        var svgs = (node.tagName === 'svg') ? [node] : node.querySelectorAll('svg');
+        svgs.forEach(function(svg) {
+          svg.setAttribute('width', '100%');
+          svg.setAttribute('height', 'auto');
+          svg.style.maxWidth = 'none';
+        });
+        svgFixed++;
+        if (svgFixed >= 2) {
+          document.getElementById('simple').classList.add('hidden-tab');
+          obs.disconnect();
+        }
+      }
+    });
+  });
+});
+obs.observe(document.body, { childList: true, subtree: true });
+
+function showTab(tabId, btn) {
+  wrapper.style.transform = 'scale(1.0)';
+  zoomLevel = 1.0;
+  zoomLabel.textContent = '100%';
+  document.querySelectorAll('.mermaid').forEach(function(el) {
+    el.style.display = 'none';
+    el.style.visibility = '';
+    el.style.position = '';
+    el.style.pointerEvents = '';
+  });
+  var target = document.getElementById(tabId);
+  target.style.display = 'block';
+  target.classList.remove('hidden-tab');
+  document.querySelectorAll('.tabs button').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>
