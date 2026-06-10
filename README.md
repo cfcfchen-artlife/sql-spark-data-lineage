@@ -2,7 +2,7 @@
 
 > 扫描 SQL / PySpark / Scala / Jupyter Notebook 项目，自动提取数据血缘关系，生成带缩放工具栏的自包含 Mermaid 流程图 HTML。
 
-只需告诉 AI 一句话，就能把 的上百行 ETL 脚本变成一张可在浏览器中任意缩放、可截图贴入 PPT 的血缘关系图。
+只需告诉 AI 一句话，就能把各种ETL 脚本变成一张可在浏览器中任意缩放、可截图贴入 PPT 的血缘关系图。
 
 [📥 查看 Demo 输出](examples/demo-lineage.html)（一个 19KB 的自包含 HTML，浏览器打开即渲染）
 
