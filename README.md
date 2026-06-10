@@ -82,8 +82,8 @@ git clone https://github.com/xxx/sql-spark-data-lineage.git ~/.claude/skills/sql
 | 项目类型 | 识别对象 |
 |---|---|
 | Hive SQL（`*.sql`） | `CREATE TABLE ... AS SELECT ... FROM ... JOIN ... UNION ALL ...` |
-| PySpark（`*.py`） | `spark.read.table()` / `ArgodbSource()` → `.write.csv()` |
-| Spark Scala（`*.scala`） | 复用 PySpark 正则：`spark.read.table()` / `.write.save()` |
+| PySpark（`*.py`） | `spark.read.table()` / `ArgodbSource()` → `.write.csv()` /other regex methods, 19 in total|
+| Spark Scala（`*.scala`） | 复用 PySpark 正则：`spark.read.table()` / `.write.save()` /same as pyspark|
 | Jupyter Notebook（`*.ipynb`） | 解析 JSON cell，按语言复用 SQL / PySpark / Scala 正则 |
 | 星环 Transwarp ArgoDB | Holodesk 表也一并纳入血缘（自动标注 🌐） |
 
