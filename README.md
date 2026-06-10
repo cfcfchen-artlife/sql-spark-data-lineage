@@ -14,8 +14,8 @@
 |---|---|---|
 | **Reasonix** | `~/.reasonix/skills/sql-spark-data-lineage/SKILL.md` | ✅ 已验证 |
 | **Claude Code** | `~/.claude/skills/sql-spark-data-lineage/SKILL.md` | 🔄 待社区验证 |
-| **OpenClaw（龙虾）** | 需确认：`SKILL.md` 还是 `claude.md`？路径是 `~/.claude/skills/` 还是其他？ | 🔄 待社区验证 |
-| **其他 Claw 衍生版** | 取决于分支的 skill 加载逻辑 | 🔄 待社区验证 |
+| **OpenClaw（龙虾）** |`~/.openclaw/skills/sql-spark-data-lineage/SKILL.md` | ✅ 已验证 |
+| **其他 Claw 衍生版** | `~/.(any)claw/skills/sql-spark-data-lineage/SKILL.md` | ✅ 已验证 |
 
 > 如果你在某个平台上验证过并确认可用，欢迎告知我/提 PR 更新此表。
 
