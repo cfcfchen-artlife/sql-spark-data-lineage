@@ -1,0 +1,12 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Agent local metadata
+.reasonix/
+.codegraph/
+desktop-topic-*
